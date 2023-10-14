@@ -1,0 +1,170 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+
+// Motor A
+int motor1Pin1 = 27; 
+int motor1Pin2 = 26; 
+int enable1Pin = 14; 
+
+// Motor B
+int motor2Pin1 = 18; 
+int motor2Pin2 = 19; 
+int enable2Pin = 23; 
+
+
+
+const char* ssid = "your wifi name to which the server pc is connected";
+const char* password = "password of the wifi t which the pc is connected";
+const char* mqtt_server = "ip address of the pc when it is connected to the particular wifi"; // Replace with your MQTT server IP
+// you can make the ip address constant by using the function IPADDRESS 
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+
+void setup() {
+    Serial.begin(115200);
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(1000);
+        Serial.println("Connecting to WiFi...");
+    }
+    Serial.println("Connected to WiFi");
+    
+    // Set motor pins as outputs
+    pinMode(motor1Pin1, OUTPUT);
+    pinMode(motor1Pin2, OUTPUT);
+    pinMode(enable1Pin, OUTPUT);
+    pinMode(motor2Pin1, OUTPUT);
+    pinMode(motor2Pin2, OUTPUT);
+    pinMode(enable2Pin, OUTPUT);
+
+    // Set the MQTT server and callback function
+    client.setServer(mqtt_server, 1883); // 1883 is the default MQTT port
+    client.setCallback(callback);
+
+    // Connect to MQTT server
+    if (client.connect("ESP32Client")) {
+        Serial.println("Connected to MQTT server");
+        // Subscribe to the "bot_1" topic
+        client.subscribe("bot_1");
+    } else {
+        Serial.println("Failed to connect to MQTT server");
+    }
+}
+
+void loop() {
+    // Reconnect to MQTT server if connection is lost
+    if (!client.connected()) {
+        Serial.println("Connection lost. Reconnecting...");
+        if (client.connect("ESP32Client")) {
+            Serial.println("Reconnected to MQTT server");
+            // Subscribe to the "bot_1" topic
+            client.subscribe("bot_1");
+        } else {
+            Serial.println("Reconnect failed. Retry in 5 seconds.");
+            delay(5000);
+        }
+    }
+
+    // Handle MQTT messages, if any
+    client.loop();
+
+    // Your code here
+}
+
+// MQTT callback function
+void callback(char* topic, byte* payload, unsigned int length) {
+    Serial.print("Received message on topic: ");
+    Serial.println(topic);
+
+    // Print the message payload
+    Serial.print("Message: ");
+    for (int i = 0; i < length; i++) {
+        Serial.print((char)payload[i]);
+    }
+    Serial.println();
+    // Declare message variable
+    String message = "";
+
+    // Extract the message content from the payload
+    for (int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+
+    // You can parse and process the payload here
+    // For example, if you expect JSON data, you can use a JSON library to parse it
+
+    // Example:
+    // DynamicJsonDocument doc(256);
+    // deserializeJson(doc, payload, length);
+    // const char* value = doc["key"]; // Replace "key" with the actual JSON key
+
+    // Print variables or perform actions based on the received data
+    // Serial.println("Parsed value: " + String(value));
+     // Check if the message corresponds to button 3 (forward)
+        if (message.equals("Button 3: 1")) {
+            // Move forward
+            Serial.println("moving forward");
+            digitalWrite(enable1Pin, HIGH);
+            digitalWrite(motor1Pin1, LOW);
+            digitalWrite(motor1Pin2, HIGH);
+            digitalWrite(enable2Pin, HIGH);
+            digitalWrite(motor2Pin1, LOW);
+            digitalWrite(motor2Pin2, HIGH);
+            
+            
+        } else if (message.equals("Button 3: 0")) {
+            // Stop motors when button 3 is released
+            digitalWrite(motor1Pin1, LOW);
+            digitalWrite(motor1Pin2, LOW);
+            digitalWrite(motor2Pin1, LOW);
+            digitalWrite(motor2Pin2, LOW);
+        } else if (message.equals("Button 2: 1")) {
+            // Perform left turn action when button 2 is pressed
+            digitalWrite(enable1Pin, HIGH);
+            digitalWrite(motor1Pin1, LOW);
+            digitalWrite(motor1Pin2, HIGH);
+            digitalWrite(enable2Pin, LOW);
+            digitalWrite(motor2Pin1, LOW);
+            digitalWrite(motor2Pin2, LOW);
+        } else if (message.equals("Button 2: 0")) {
+            // Stop motors when button 2 is released
+            digitalWrite(motor1Pin1, LOW);
+            digitalWrite(motor1Pin2, LOW);
+            digitalWrite(motor2Pin1, LOW);
+            digitalWrite(motor2Pin2, LOW);
+        }
+        else if(message.equals("Button 1: 1")){
+           // Add your code here 
+            digitalWrite(enable2Pin, HIGH);
+            digitalWrite(motor2Pin1, LOW);
+            digitalWrite(motor2Pin2, HIGH);
+            digitalWrite(enable1Pin, LOW);
+            digitalWrite(motor1Pin1, LOW);
+            digitalWrite(motor1Pin2, LOW);
+        } 
+        else if (message.equals("Button 1: 0")) {
+            // Stop motors when button 3 is released
+            digitalWrite(motor1Pin1, LOW);
+            digitalWrite(motor1Pin2, LOW);
+            digitalWrite(motor2Pin1, LOW);
+            digitalWrite(motor2Pin2, LOW);
+        }
+         else if (message.equals("Button 0: 1")) {
+            // Move backward when button 0 is pressed
+            digitalWrite(enable1Pin, HIGH);
+            digitalWrite(motor1Pin1, HIGH);
+            digitalWrite(motor1Pin2, LOW);
+            digitalWrite(enable2Pin, HIGH);
+            digitalWrite(motor2Pin1, HIGH);
+            digitalWrite(motor2Pin2, LOW);
+        } 
+        else if (message.equals("Button 0: 0")) {
+            // Stop motors when button 0 is released
+            digitalWrite(motor1Pin1, LOW);
+            digitalWrite(motor1Pin2, LOW);
+            digitalWrite(motor2Pin1, LOW);
+            digitalWrite(motor2Pin2, LOW);
+        }
+}

@@ -1,0 +1,70 @@
+import pygame
+import paho.mqtt.client as mqtt
+
+# MQTT Broker Settings
+mqtt_broker_address = ""  # Change to your broker's IP address
+mqtt_broker_port =   # Change to your broker's port number
+mqtt_topic = ""  # Change to the desired MQTT topic
+
+# Initialize pygame
+pygame.init()
+
+# Initialize the joystick module
+pygame.joystick.init()
+
+# Check if any joystick (including the PS3 controller) is connected
+if pygame.joystick.get_count() == 0:
+    print("No joystick found.")
+    pygame.quit()
+else:
+    # Initialize the first joystick (index 0)
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+
+    print(f"Using joystick: {joystick.get_name()}")
+
+    # Create dictionaries to store previous button and axis states
+    prev_button_states = {}
+    prev_axis_states = {}
+
+    # Initialize MQTT client
+    mqtt_client = mqtt.Client()
+
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            print("Connected to MQTT Broker")
+        else:
+            print(f"Connection to MQTT Broker failed with code {rc}")
+
+    mqtt_client.on_connect = on_connect
+
+    # Connect to the MQTT broker with the specified port
+    mqtt_client.connect(mqtt_broker_address, port=mqtt_broker_port)
+
+    try:
+        while True:
+            pygame.event.pump()
+
+            # Read the state of buttons and axes
+            button_states = {i: joystick.get_button(i) for i in range(joystick.get_numbuttons())}
+            axis_states = {i: joystick.get_axis(i) for i in range(joystick.get_numaxes())}
+
+            # Check for changes in button states and publish them
+            for button, state in button_states.items():
+                if state != prev_button_states.get(button):
+                    message = f"Button {button}: {state}"
+                    mqtt_client.publish(mqtt_topic, message)
+                    print(message)
+                    prev_button_states[button] = state
+
+            # Check for changes in axis states and publish them
+            for axis, value in axis_states.items():
+                if value != prev_axis_states.get(axis):
+                    message = f"Axis {axis}: {value}"
+                    mqtt_client.publish(mqtt_topic, message)
+                    print(message)
+                    prev_axis_states[axis] = value
+
+    except KeyboardInterrupt:
+        print("Exiting...")
+        pygame.quit()
